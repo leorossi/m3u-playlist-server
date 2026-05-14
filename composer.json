@@ -22,6 +22,7 @@
         "symfony/serializer": "8.0.*",
         "symfony/uid": "8.0.*",
         "symfony/validator": "8.0.*",
+        "symfony/monolog-bundle": "^3.10",
         "symfony/yaml": "8.0.*"
     },
     "config": {
