@@ -1,0 +1,8 @@
+vendor/
+var/cache/
+var/log/
+node_modules/
+assets/node_modules/
+public/build/
+.git/
+*.md

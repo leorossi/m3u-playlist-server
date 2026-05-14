@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="ch1" tvg-name="Channel One" tvg-logo="http://example.com/logo1.png",Channel One
+http://example.com/stream1.m3u8
+#EXTINF:-1 tvg-id="ch2" tvg-name="Channel Two",Channel Two
+http://example.com/stream2.m3u8
+#EXTINF:-1,Channel Three
+http://example.com/stream3.m3u8
