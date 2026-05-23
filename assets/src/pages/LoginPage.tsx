@@ -7,8 +7,8 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const isDev = import.meta.env.VITE_AUTOFILL === 'true';
-  const [email, setEmail] = useState(isDev ? 'leonardo.rossi@gmail.com' : '');
-  const [password, setPassword] = useState(isDev ? 'password' : '');
+  const [email, setEmail] = useState(isDev ? import.meta.env.VITE_AUTOFILL_EMAIL : '');
+  const [password, setPassword] = useState(isDev ? import.meta.env.VITE_AUTOFILL_PASSWORD : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

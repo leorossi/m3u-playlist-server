@@ -67,6 +67,178 @@ The app is now listening on **port 8080** inside the host network.
 
 ---
 
+## Bare-metal deployment (no Docker)
+
+Use this when PHP-FPM runs directly on the host and haproxy does TLS termination before nginx.
+
+```
+Internet → haproxy :80/:443 (TLS) → nginx :8080 → php-fpm (unix socket)
+```
+
+### PHP-FPM pool
+
+Edit (or create) a pool file, e.g. `/etc/php/8.x/fpm/pool.d/m3u.conf`:
+
+```ini
+[m3u]
+user  = www-data
+group = www-data
+
+listen = /run/php/m3u.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode  = 0660
+
+pm = dynamic
+pm.max_children      = 10
+pm.start_servers     = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+
+; Adjust to your app path
+chdir = /srv/m3u-playlist-server
+```
+
+Restart FPM after any pool change:
+
+```bash
+systemctl restart php8.x-fpm
+```
+
+### nginx site
+
+Create `/etc/nginx/sites-available/m3u-playlist`:
+
+```nginx
+server {
+    listen 8080;
+    server_name _;
+
+    root /srv/m3u-playlist-server/public;
+    server_tokens off;
+
+    # Vite build assets — long-lived cache (hashed filenames)
+    location ^~ /build/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # PHP-handled routes: API + public list endpoint
+    location ~ ^/(api|lists)(/|$) {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    # SPA catch-all: serve built index.html for all other paths
+    location / {
+        try_files $uri /build/index.html;
+    }
+
+    # PHP-FPM handler (internal only)
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass unix:/run/php/m3u.sock;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT   $realpath_root;
+        internal;
+    }
+
+    location ~ \.php$ {
+        return 404;
+    }
+}
+```
+
+Enable and reload:
+
+```bash
+ln -s /etc/nginx/sites-available/m3u-playlist /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+```
+
+### haproxy
+
+Add to `/etc/haproxy/haproxy.cfg`:
+
+```
+frontend http_front
+    bind *:80
+    # Redirect all HTTP to HTTPS
+    http-request redirect scheme https code 301
+
+frontend https_front
+    bind *:443 ssl crt /etc/haproxy/certs/m3u-server.pem
+    # Forward real client IP and protocol to nginx / Symfony
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https
+    # Route by hostname
+    acl host_m3u hdr(host) -i m3u-server.leorossi.online
+    use_backend m3u_backend if host_m3u
+
+backend m3u_backend
+    server app 127.0.0.1:8080 check
+```
+
+> The TLS certificate at `/etc/haproxy/certs/m3u-server.pem` must be a single file containing the full chain + private key (i.e. `cat fullchain.pem privkey.pem > m3u-server.pem`).
+
+Reload haproxy:
+
+```bash
+haproxy -c -f /etc/haproxy/haproxy.cfg && systemctl reload haproxy
+```
+
+### File permissions
+
+PHP-FPM runs as `www-data` and needs write access to `var/cache/` and `var/log/`. If you deploy as the `debian` user:
+
+```bash
+# Give www-data group write access to var/
+sudo chown -R debian:www-data /srv/m3u-playlist-server/var/
+sudo chmod -R 775 /srv/m3u-playlist-server/var/
+
+# Allow debian user to run bin/console as www-data for cache clears etc.
+sudo usermod -aG www-data debian
+```
+
+Add this to your deploy script so permissions are reset after every `git pull`:
+
+```bash
+sudo chown -R debian:www-data /srv/m3u-playlist-server/var/
+sudo chmod -R 775 /srv/m3u-playlist-server/var/
+```
+
+### First-time setup (bare metal)
+
+```bash
+cd /srv/m3u-playlist-server
+cp .env.sample .env.local
+# edit .env.local: APP_ENV=prod, APP_SECRET, DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD
+
+composer install --no-dev --optimize-autoloader
+php bin/console cache:clear --env=prod
+php bin/console doctrine:migrations:migrate --no-interaction
+php bin/console doctrine:fixtures:load --no-interaction
+```
+
+### Updating (bare metal)
+
+```bash
+cd /srv/m3u-playlist-server
+git pull
+
+# Rebuild frontend if assets changed
+cd assets && npm ci && npm run build && cd ..
+
+composer install --no-dev --optimize-autoloader
+php bin/console cache:clear --env=prod
+php bin/console doctrine:migrations:migrate --no-interaction
+
+sudo chown -R debian:www-data var/ && sudo chmod -R 775 var/
+```
+
+---
+
 ## nginx reverse proxy
 
 Add a site config on the host nginx (e.g. `/etc/nginx/sites-available/m3u-playlist`):
