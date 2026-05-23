@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const isDev = import.meta.env.MODE === 'development';
+  const isDev = import.meta.env.VITE_AUTOFILL === 'true';
   const [email, setEmail] = useState(isDev ? 'leonardo.rossi@gmail.com' : '');
   const [password, setPassword] = useState(isDev ? 'password' : '');
   const [error, setError] = useState('');
