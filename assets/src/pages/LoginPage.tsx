@@ -6,8 +6,9 @@ import { useAuth } from '../contexts/AuthContext';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const isDev = import.meta.env.MODE === 'development';
+  const [email, setEmail] = useState(isDev ? 'leonardo.rossi@gmail.com' : '');
+  const [password, setPassword] = useState(isDev ? 'password' : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
