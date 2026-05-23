@@ -210,6 +210,46 @@ class PlaylistController extends AbstractController
         ));
     }
 
+    #[Route('/{id}/channels/domain', methods: ['PUT'])]
+    public function updateChannelsDomain(Playlist $playlist, Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted(PlaylistVoter::MANAGE, $playlist);
+
+        $data      = json_decode($request->getContent(), true) ?? [];
+        $newDomain = trim((string) ($data['domain'] ?? ''));
+
+        if ($newDomain === '') {
+            return $this->json(['error' => 'Domain cannot be empty'], 400);
+        }
+
+        foreach ($playlist->getChannels() as $channel) {
+            $parsed = parse_url($channel->getUrl());
+            if (!$parsed || !isset($parsed['scheme'])) {
+                continue;
+            }
+
+            $newUrl = $parsed['scheme'] . '://' . $newDomain;
+            if (isset($parsed['path'])) {
+                $newUrl .= $parsed['path'];
+            }
+            if (isset($parsed['query'])) {
+                $newUrl .= '?' . $parsed['query'];
+            }
+            if (isset($parsed['fragment'])) {
+                $newUrl .= '#' . $parsed['fragment'];
+            }
+
+            $channel->setUrl($newUrl);
+        }
+
+        $this->em->flush();
+
+        return $this->json(array_map(
+            $this->serializeChannel(...),
+            $playlist->getChannels()->toArray()
+        ));
+    }
+
     // ── Logs ─────────────────────────────────────────────────────────────────
 
     #[Route('/{id}/logs', methods: ['GET'])]

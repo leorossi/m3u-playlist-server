@@ -24,6 +24,11 @@ export default function PlaylistDetailPage() {
   const [pendingToggles, setPendingToggles] = useState<Record<string, boolean>>({});
   const [savingChannels, setSavingChannels] = useState(false);
 
+  const [domain, setDomain] = useState('');
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [domainSaveOk, setDomainSaveOk] = useState(false);
+  const [domainSaveError, setDomainSaveError] = useState('');
+
   useEffect(() => {
     if (!id) return;
     Promise.all([
@@ -34,7 +39,11 @@ export default function PlaylistDetailPage() {
         setPlaylist(p);
         setName(p.name);
         setSlug(p.slug);
-        setChannels(ch.sort((a, b) => a.position - b.position));
+        const sorted = ch.sort((a, b) => a.position - b.position);
+        setChannels(sorted);
+        if (sorted.length > 0) {
+          try { setDomain(new URL(sorted[0].url).host); } catch { /* non-parseable URL */ }
+        }
       })
       .catch(() => setError('Failed to load playlist'))
       .finally(() => setLoading(false));
@@ -73,6 +82,22 @@ export default function PlaylistDetailPage() {
       alert('Failed to save channel changes');
     } finally {
       setSavingChannels(false);
+    }
+  };
+
+  const handleSaveDomain = async (e: FormEvent) => {
+    e.preventDefault();
+    setDomainSaveError('');
+    setDomainSaveOk(false);
+    setSavingDomain(true);
+    try {
+      const updated = await api.put<Channel[]>(`/api/lists/${id}/channels/domain`, { domain });
+      setChannels(updated.sort((a, b) => a.position - b.position));
+      setDomainSaveOk(true);
+    } catch (err) {
+      setDomainSaveError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSavingDomain(false);
     }
   };
 
@@ -134,6 +159,33 @@ export default function PlaylistDetailPage() {
           </p>
         </form>
       </div>
+
+      {channels.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-5 mb-5">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Channel Domain</h3>
+          <form onSubmit={handleSaveDomain}>
+            {domainSaveError && (
+              <div className="text-sm px-3 py-2 mb-3 rounded-md bg-red-50 border border-red-200 text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-400">
+                {domainSaveError}
+              </div>
+            )}
+            {domainSaveOk && (
+              <div className="text-sm px-3 py-2 mb-3 rounded-md bg-green-50 border border-green-200 text-green-700 dark:bg-green-950 dark:border-green-800 dark:text-green-400">
+                Domain updated for all channels!
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex flex-col gap-1.5 flex-1 min-w-60">
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Domain (applied to all channels)</label>
+                <input type="text" value={domain} onChange={e => setDomain(e.target.value)} required placeholder="example.com:8080" className={inputCls} />
+              </div>
+              <button type="submit" disabled={savingDomain} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer">
+                {savingDomain ? 'Saving…' : 'Update all'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
