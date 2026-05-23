@@ -13,6 +13,7 @@ export default function LogsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -24,10 +25,20 @@ export default function LogsPage() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    api.get<LogsPageData>(`/api/lists/${id}/logs?page=${page}&limit=20`)
-      .then(setLogs)
-      .catch(() => setError('Failed to load logs'))
-      .finally(() => setLoading(false));
+
+    const fetchLogs = () => {
+      api.get<LogsPageData>(`/api/lists/${id}/logs?page=${page}&limit=20`)
+        .then(data => {
+          setLogs(data);
+          setLastChecked(new Date());
+        })
+        .catch(() => setError('Failed to load logs'))
+        .finally(() => setLoading(false));
+    };
+
+    fetchLogs();
+    const timer = setInterval(fetchLogs, 5000);
+    return () => clearInterval(timer);
   }, [id, page]);
 
   const totalPages = logs ? Math.ceil(logs.total / logs.limit) : 0;
@@ -48,7 +59,12 @@ export default function LogsPage() {
 
       {logs && (
         <>
-          <p className="text-xs text-gray-400 mb-3">{logs.total} total requests</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-400">{logs.total} total requests</p>
+            {lastChecked && (
+              <p className="text-xs text-gray-400">Last checked: {formatDateTime(lastChecked)}</p>
+            )}
+          </div>
 
           {logs.data.length === 0 ? (
             <p className="text-center text-gray-400 py-10">No requests logged yet.</p>
