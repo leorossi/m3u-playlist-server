@@ -89,6 +89,9 @@ export default function PlaylistDetailPage() {
         <button onClick={() => navigate('/')} className="px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
           ← Back
         </button>
+        <button onClick={() => navigate(`/playlists/${id}/logs`)} className="px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+          Logs
+        </button>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{playlist.name}</h2>
       </div>
 
