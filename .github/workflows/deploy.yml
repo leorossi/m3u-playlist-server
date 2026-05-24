@@ -20,6 +20,9 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
             cd /srv/m3u-playlist-server
 
             git pull origin main
