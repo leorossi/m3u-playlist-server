@@ -1,4 +1,6 @@
 monolog:
+    channels:
+        - deprecation
     handlers:
         main:
             type: rotating_file
