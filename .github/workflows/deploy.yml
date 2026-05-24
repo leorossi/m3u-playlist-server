@@ -24,7 +24,7 @@ jobs:
 
             git pull origin main
 
-            cd assets && npm ci && npm run build && cd ..
+            (cd assets && npm ci && npm run build)
 
             composer install --no-dev --optimize-autoloader
 
