@@ -239,6 +239,64 @@ sudo chown -R debian:www-data var/ && sudo chmod -R 775 var/
 
 ---
 
+## Continuous deployment (GitHub Actions)
+
+Pushes to `main` automatically deploy via `.github/workflows/deploy.yml`.
+
+### 1. Generate a dedicated SSH key pair for CI
+
+Run this **on your local machine** (no passphrase):
+
+```bash
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/m3u_deploy
+```
+
+This produces `~/.ssh/m3u_deploy` (private) and `~/.ssh/m3u_deploy.pub` (public).
+
+### 2. Authorise the key on the server
+
+```bash
+# On the server — append the public key
+echo "<contents of ~/.ssh/m3u_deploy.pub>" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+### 3. Allow passwordless sudo for the deploy commands
+
+The workflow runs `sudo chown`, `sudo chmod`, and `sudo systemctl reload php8.4-fpm`.  
+Add a sudoers drop-in on the server (replace `debian` with your deploy user):
+
+```bash
+sudo visudo -f /etc/sudoers.d/m3u-deploy
+```
+
+Paste:
+
+```
+debian ALL=(ALL) NOPASSWD: /bin/chown -R debian\:www-data /srv/m3u-playlist-server/var/, \
+                            /bin/chmod -R 775 /srv/m3u-playlist-server/var/, \
+                            /bin/systemctl reload php8.4-fpm
+```
+
+> Adjust the PHP-FPM service name (`php8.4-fpm`) if your server runs a different version.
+
+### 4. Add GitHub repository secrets
+
+Go to **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value |
+|--------|-------|
+| `SSH_HOST` | Server IP or hostname |
+| `SSH_USER` | Deploy user (e.g. `debian`) |
+| `SSH_KEY` | Contents of `~/.ssh/m3u_deploy` (the private key) |
+| `SSH_PORT` | SSH port (e.g. `22`) |
+
+### 5. Verify
+
+Push any commit to `main` and watch the **Actions** tab on GitHub. A successful run means the server is fully up to date.
+
+---
+
 ## nginx reverse proxy
 
 Add a site config on the host nginx (e.g. `/etc/nginx/sites-available/m3u-playlist`):
